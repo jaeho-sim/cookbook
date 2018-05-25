@@ -170,112 +170,41 @@ var onSessionEnded = (sessionEndedRequest, session) => {
 }
 
 var onLaunch = (launchRequest, session, response) => {
-  response.speechText = 'Welcome to Cookbook';
-  response.repromptText = 'Welcome to Cookbook';
+  response.speechText = 'Welcome to Cookbook. Would you like recommendations?';
+  response.repromptText = 'You can say Yes or No.';
   response.shouldEndSession = false;
+  // might have called this function by saying "previous step" or "main menu",
+  // so set the previousStep according to it
+  session.attributes.previousStep = session.attributes.currentStep ? session.attributes.currentStep : null;
+  session.attributes.currentStep = 'launch';
   response.done();
 }
 
-const MAX_RESPONSES = 3;
-const MAX_FOOD_ITEMS = 10;
+intentHandlers['AMAZON.YesIntent'] = (request, session, response, slots) => {
+  response.speechText = `Answered Yes`;
+  response.shouldEndSession = true;
+  response.done();
+}
 
-intentHandlers['GetNutritionInfo'] = (request,session,response,slots) => {
-  var foodDb = require('./food_db.json');
-  var results = searchFood(foodDb, slots.FoodItem);
-
-  // no result
-  if(results.length == 0) {
-    response.speechText = `Could not find any food item for ${slots.FoodItem}. Please try different food item. `;
-    response.shouldEndSession = true;
+intentHandlers['AMAZON.NoIntent'] = (request, session, response, slots) => {
+  if(session.attributes.currentStep === 'launch') {
+    response.speechText ='What dish are you cooking right now?';
+    response.repromptText ='You can say the dish name you want to cook.';
+    session.attributes.previousStep = 'launch';
+    session.attributes.currentStep = 'recipe';
+    response.shouldEndSession = false;
     response.done();
   }
   else {
-    results.slice(0, MAX_RESPONSES).forEach(item => response.speechText += `100 grams of ${item[0]} contains ${item[1]} calories. `);
-
-    // telling user that we have more results
-    if(results.length > MAX_RESPONSES) {
-      response.speechText += `There are more food matched your search. You can say more information for more information. Or say stop to stop the skill. `;
-      response.repromptText = `You can say more information or stop. `;
-      // save the results number
-      session.attributes.resultLength = results.length;
-      session.attributes.results = results.slice(MAX_RESPONSES, MAX_FOOD_ITEMS);
-      response.shouldEndSession = false;
-      response.done();
-    }
-    else {
-      response.shouldEndSession = true;
-      response.done();
-    }
+    response.speechText ='Unknown command.';
+    response.shouldEndSession = true;
+    response.done();
   }
 }
 
-intentHandlers['GetNextEventIntent'] = (request,session,response,slots) => {
-  response.speechText = `Your search resulted in ${session.attributes.resultLength} food items. Here are the few food items from search. Please add more keywords from this list for better results. `;
-  session.attributes.results.forEach(item => response.speechText += `${item[0]}. `);
-  response.shouldEndSession = true;
-  response.done();
-}
-
-intentHandlers['AMAZON.StopIntent'] = (request,session,response,slots) => {
-  response.speechText = `Good Bye. `;
-  response.shouldEndSession = true;
-  response.done();
-}
 
 
-// search algorithm
-var searchFood = (fDb, foodName) => {
-  foodName = foodName.toLowerCase().replace(/,/g, '');
-  var foodWords = foodName.split(/\s+/);
-  var regExps = [];
-  var searchResult = [];
 
-  foodWords.forEach((sWord) => {
-    // remove plural
-    regExps.push(new RegExp(`^${sWord}(es|s)?\\b`));
-    regExps.push(new RegExp(`^${sWord}`));
-  });
-
-  fDb.forEach((item) => {
-    var match = 1;
-    var fullName = item[0];
-    var cmpWeight = 0;
-
-    foodWords.forEach((sWord) => {
-      if(!fullName.match(sWord)) {
-        match = 0;
-      }
-    });
-
-    if(match == 0) {
-      return;
-    }
-
-    regExps.forEach((rExp) => {
-      if(fullName.match(rExp)) {
-        cmpWeight += 10;
-      }
-    });
-
-    if(fullName.split(/\s+/).length == foodWords.length) {
-      cmpWeight += 10;
-    }
-
-    searchResult.push([item, cmpWeight]);
-  });
-
-  var finalResult = searchResult.filter(x => x[1] >= 10);
-  if(finalResult.length == 0) {
-    finalResult = searchResult;
-  }
-  else {
-    finalResult.sort((a,b) => b[1] - a[1]);
-  }
-
-  finalResult = finalResult.map((x) => x[0]);
-
-  return finalResult;
-}
 
 
 /** For each intent write a intentHandlers
