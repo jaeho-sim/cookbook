@@ -176,22 +176,32 @@ var onLaunch = (launchRequest, session, response) => {
   // might have called this function by saying "previous step" or "main menu",
   // so set the previousStep according to it
   session.attributes.previousStep = session.attributes.currentStep ? session.attributes.currentStep : null;
-  session.attributes.currentStep = 'launch';
-  response.done();
-}
-
-intentHandlers['AMAZON.YesIntent'] = (request, session, response, slots) => {
-  response.speechText = `Answered Yes`;
-  response.shouldEndSession = true;
+  session.attributes.currentStep = 'recommendation-yn';
   response.done();
 }
 
 intentHandlers['AMAZON.NoIntent'] = (request, session, response, slots) => {
-  if(session.attributes.currentStep === 'launch') {
+  if(session.attributes.currentStep === 'recommendation-yn') {
     response.speechText ='What dish are you cooking right now?';
     response.repromptText ='You can say the dish name you want to cook.';
-    session.attributes.previousStep = 'launch';
-    session.attributes.currentStep = 'recipe';
+    session.attributes.previousStep = 'recommendation-yn';
+    session.attributes.currentStep = 'recipe-ask';
+    response.shouldEndSession = false;
+    response.done();
+  }
+  else {
+    response.speechText ='Unknown command.';
+    response.shouldEndSession = true;
+    response.done();
+  }
+}
+
+intentHandlers['AMAZON.YesIntent'] = (request, session, response, slots) => {
+  if(session.attributes.currentStep === 'recommendation-yn') {
+    response.speechText = `You can ask me to search for recipes within a category such as "breakfast" or "italian". What category would you like to search?`;
+    response.repromptText ='Please say a category you would like to search within.';
+    session.attributes.previousStep = 'recommendation-yn';
+    session.attributes.currentStep = 'category-ask';
     response.shouldEndSession = false;
     response.done();
   }
