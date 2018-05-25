@@ -97,8 +97,6 @@ var event = {
 };
 
 
-
-
 describe('All intents', () => {
   // this Context object will hold the response
   var ctx = new Context();
@@ -107,7 +105,10 @@ describe('All intents', () => {
     before((done) => {
       event.request.type = 'LaunchRequest';
       event.request.intent = {};
-      event.session.attributes = {};
+      event.session.attributes = {
+        previousStep: null,
+        currentStep: null
+      };
       ctx.done = done;
       lambdaToTest.handler(event , ctx);
     });
@@ -118,11 +119,39 @@ describe('All intents', () => {
     });
 
     it('valid outputSpeech', () => {
-      expect(ctx.speechResponse.response.outputSpeech.ssml).to.match(/<speak>Welcome to Cookbook<\/speak>/);
+      expect(ctx.speechResponse.response.outputSpeech.ssml).to.match(/<speak>Welcome to .*<\/speak>/);
     });
 
     it('valid repromptSpeech', () => {
-      expect(ctx.speechResponse.response.reprompt.outputSpeech.ssml).to.match(/<speak>Welcome to Cookbook<\/speak>/);
+      expect(ctx.speechResponse.response.reprompt.outputSpeech.ssml).to.match(/<speak>You can say Yes or No.<\/speak>/);
+    });
+  });
+
+  describe('Test NoIntent after Launch', () => {
+    before((done) => {
+      event.request.type = 'IntentRequest';
+      event.request.intent = {
+        name: 'AMAZON.NoIntent'
+      };
+      event.session.attributes = {
+        previousStep: null,
+        currentStep: 'launch'
+      };
+      ctx.done = done;
+      lambdaToTest.handler(event , ctx);
+    });
+    it('valid response', () => {
+      validRsp(ctx,{
+        endSession: false,
+      });
+    });
+
+    it('valid outputSpeech', () => {
+      expect(ctx.speechResponse.response.outputSpeech.ssml).to.match(/<speak>What dish are you cooking .*<\/speak>/);
+    });
+
+    it('valid repromptSpeech', () => {
+      expect(ctx.speechResponse.response.reprompt.outputSpeech.ssml).to.match(/<speak>You can say the dish name .*<\/speak>/);
     });
   });
 
