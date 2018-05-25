@@ -205,6 +205,14 @@ intentHandlers['AMAZON.YesIntent'] = (request, session, response, slots) => {
     response.shouldEndSession = false;
     response.done();
   }
+  else if(session.attributes.currentStep === 'category-ask') {
+    response.speechText = `The categories are `;
+    response.repromptText ='The categories are ';
+    session.attributes.previousStep = 'category-ask';
+    session.attributes.currentStep = 'category-list';
+    response.shouldEndSession = false;
+    response.done();
+  }
   else {
     response.speechText ='Unknown command.';
     response.shouldEndSession = true;

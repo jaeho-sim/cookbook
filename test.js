@@ -127,6 +127,7 @@ describe('All intents', () => {
     });
   });
 
+
   describe('Test NoIntent after Launch when asked to recommend', () => {
     before((done) => {
       event.request.type = 'IntentRequest';
@@ -154,6 +155,7 @@ describe('All intents', () => {
       expect(ctx.speechResponse.response.reprompt.outputSpeech.ssml).to.match(/<speak>You can say the dish name .*<\/speak>/);
     });
   });
+
 
   describe('Test YesIntent after Launch when asked to recommend', () => {
     before((done) => {
@@ -183,6 +185,34 @@ describe('All intents', () => {
     });
   });
 
+
+  describe('Test YesIntent after when asked for category', () => {
+    before((done) => {
+      event.request.type = 'IntentRequest';
+      event.request.intent = {
+        name: 'AMAZON.YesIntent'
+      };
+      event.session.attributes = {
+        previousStep: 'recommendation-yn',
+        currentStep: 'category-ask'
+      };
+      ctx.done = done;
+      lambdaToTest.handler(event , ctx);
+    });
+    it('valid response', () => {
+      validRsp(ctx,{
+        endSession: false,
+      });
+    });
+
+    it('valid outputSpeech', () => {
+      expect(ctx.speechResponse.response.outputSpeech.ssml).to.match(/<speak>The categories are .*<\/speak>/);
+    });
+
+    it('valid repromptSpeech', () => {
+      expect(ctx.speechResponse.response.reprompt.outputSpeech.ssml).to.match(/<speak>The categories are .*<\/speak>/);
+    });
+  });
 
   // var expResults = {
   //   'butter salted': {
