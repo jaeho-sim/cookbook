@@ -4,10 +4,14 @@ const axios = require('axios');
 const BASE_URL = 'https://spoonacular-recipe-food-nutrition-v1.p.mashape.com/recipes/';
 const config = {
   headers: {
-    'X-Mashape-Key': process.env.X_MASHAPE_KEY ? process.env.X_MASHAPE_KEY : 'nI4Yz4VMeUmshqhgxKKou5sEx0mGp1WWcLrjsnYWnh2YrjXjgH',
-    'X-Mashape-Host': process.env.X_MASHAPE_HOST ? process.env.X_MASHAPE_HOST : 'spoonacular-recipe-food-nutrition-v1.p.mashape.com'
+    'X-Mashape-Key': process.env.X_MASHAPE_KEY,
+    'X-Mashape-Host': process.env.X_MASHAPE_HOST
   }
 };
+
+if(!process.env.X_MASHAPE_KEY || !process.env.X_MASHAPE_HOST) {
+  throw new Error("API keys are Undefined");
+}
 
 const searchRecipes = function (query, axiosInstance = axios) {
   return new Promise((resolve, reject) => {
