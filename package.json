@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "proxy": "bst proxy lambda index.js",
+    "proxy": "npm run dev",
+    "develop": "npm run dev",
+    "dev": "NODE_ENV=development alexa-skill-local",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
