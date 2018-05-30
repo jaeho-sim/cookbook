@@ -25,10 +25,8 @@ const handlers = {
       return true;
     },
     handle(handlerInput, error) {
-      console.log("Inside ErrorHandler - handle");
-      // console.log(`Error handled: ${JSON.stringify(error)}`);
-      console.log('error', error);
-      console.log(`Handler Input: ${JSON.stringify(handlerInput)}`);
+      console.error(error);
+      console.log('Handler Input', handlerInput);
 
       return handlerInput.responseBuilder
         .speak("Something went wrong")
@@ -41,7 +39,7 @@ const handlers = {
       return ['LaunchRequest'].includes(type);
     },
     handle(handlerInput) {
-      handlerInput.attributesManager.setSessionAttributes({ state: states.init })
+      handlerInput.attributesManager.setSessionAttributes({ state: states.init });
       return handlerInput.responseBuilder
         .speak("Welcome to cookbook. Would you like recommendations?")
         .reprompt()
@@ -56,7 +54,7 @@ const handlers = {
     },
     handle(handlerInput) {
       handlerInput.attributesManager.setSessionAttributes({ state: states.category_search })
-      console.log('CATEGORYINTENTHANDLER HANDLE');
+
       return handlerInput.responseBuilder
         .speak(`Other categories include ${utils.oxfordComma(utils.shuffleArray(categories))}`)
         .reprompt()
