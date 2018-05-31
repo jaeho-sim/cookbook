@@ -1,0 +1,36 @@
+---
+platform: linux
+
+image_resource:
+  type: docker-image
+  source:
+    repository: tribalscaledocker/alpine-python-node
+    tag: 8.11.2
+
+inputs:
+  - name: project-repo
+outputs:
+  - name: built-resource
+caches:
+  - path: project-repo/node_modules
+  - path: built-resource/node_modules
+  - path: built-resource/src/node_modules
+
+run:
+  path: sh
+  args:
+  - -exc
+  - |
+    cd project-repo
+    rm -rf test
+    npm prune --production
+    zip -r lambda_upload.zip index.js node_modules src
+    mkdir ~/.aws
+    touch ~/.aws/config
+    echo "[default]" >> ~/.aws/config
+    echo "region = us-east-1" >> ~/.aws/config
+    touch ~/.aws/credentials
+    echo "[default]" >> ~/.aws/credentials
+    echo "aws_access_key_id = $AWS_SDK_KEY" >> ~/.aws/credentials
+    echo "aws_secret_access_key = $AWS_SDK_SECRET" >> ~/.aws/credentials
+    aws lambda update-function-code --function-name demo-cookbook-2018-05 --zip-file fileb://lambda_upload.zip

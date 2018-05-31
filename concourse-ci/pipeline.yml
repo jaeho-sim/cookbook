@@ -1,0 +1,64 @@
+resource_types:
+  - name: pull-request
+    type: docker-image
+    source:
+      repository: jtarchie/pr
+
+resources:
+  - name: git-master-repo
+    type: git
+    source:
+      uri: git@github.com:simjh0919/cookbook
+      branch: chore/setup-concourse-ci/#158000656
+      private_key: ((github-private-key))
+  - name: pr-cookbook
+    type: pull-request
+    source:
+      uri: git@github.com:simjh0919/cookbook
+      repo: simjh0919/cookbook
+      private_key: ((github-private-key))
+      access_token: ((github-access-token))
+
+jobs:
+  - name: test-deploy-dev-alexa-app
+    plan:
+      - get: git-master-repo
+        trigger: true
+      - task: test
+        input_mapping:
+          project-repo: git-master-repo
+        output_mapping:
+          built-resource: built-demo-cookbook
+        file: git-master-repo/concourse-ci/test.yml
+        params:
+          NODE_ENV: test
+      - task: deploy
+        input_mapping:
+          project-repo: built-demo-cookbook
+        file: built-demo-cookbook/concourse-ci/deploy.yml
+        params:
+          NODE_ENV: test
+          AWS_SDK_KEY: ((aws-id))
+          AWS_SDK_SECRET: ((aws-secret))
+
+  - name: test-pr
+    plan:
+      - get: pr-cookbook
+        trigger: true
+      - task: test
+        input_mapping:
+          project-repo: pr-cookbook
+        file: pr-cookbook/concourse-ci/test.yml
+        params:
+          NODE_ENV: test
+          ENVIRONMENT: TESTING
+        on_success:
+          put: pr-cookbook
+          params:
+            path: pr-cookbook
+            status: success
+        on_failure:
+          put: pr-cookbook
+          params:
+            path: pr-cookbook
+            status: failure
