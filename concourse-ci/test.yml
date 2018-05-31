@@ -10,7 +10,7 @@ image_resource:
 inputs:
   - name: project-repo
 outputs:
-  - path: built-resource
+  - name: built-resource
 caches:
   - path: project-repo/node_modules
   - path: built-resource/node_modules
@@ -24,4 +24,4 @@ run:
     npm install
     npm run test
     cp -r . ../built-resource
-    ls -la built-resource
+    ls -la ../built-resource
