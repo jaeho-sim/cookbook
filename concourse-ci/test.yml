@@ -25,4 +25,4 @@ run:
     npm run test
     cd ../
     cp -r . ../built-resource
-    ls -la
+    ls -la built-resource
