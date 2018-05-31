@@ -4,6 +4,7 @@ const utils = require('../utils');
 const { states } = require('../constants');
 const categories = require('../../static-data/category.json').map(category => category.name.value);
 const intents = require('./intents');
+const API = require('../foodapi');
 const welcomeMessage = 'Welcome to Cookbook. Would you like recommendations?';
 const repromptYnMessage = 'You can say Yes or No.';
 const handlers = {
@@ -26,7 +27,6 @@ const handlers = {
     },
     handle(handlerInput, error) {
       console.error(error);
-      console.log('Handler Input', handlerInput);
 
       return handlerInput.responseBuilder
         .speak("Something went wrong")
@@ -49,8 +49,11 @@ const handlers = {
   CategoryIntentHandler:{
     canHandle(handlerInput) {
       const { request } = handlerInput.requestEnvelope;
-      console.log('CATEGORYINTENTHANDLER request: ', request)
-      return request.type === 'IntentRequest' && request.intent.name === 'MoreIntent';
+      const { attributesManager } = handlerInput;
+      console.log('CategoryIntentHandler request', request);
+      return request.type === 'IntentRequest' &&
+        request.intent.name === 'MoreIntent' &&
+        attributesManager.getSessionAttributes().state === states.category;
     },
     handle(handlerInput) {
       handlerInput.attributesManager.setSessionAttributes({ state: states.category_search })
@@ -61,9 +64,30 @@ const handlers = {
         .getResponse();
     }
   },
+  CategorySelectionIntentHandler:{
+    canHandle(handlerInput) {
+      const { request } = handlerInput.requestEnvelope;
+      console.log('CategorySelectionIntentHandler request: ', request);
+      return request.type === 'IntentRequest' &&
+        ['CategorySelectionIntent','MoreIntent'].includes(request.intent.name) &&
+        categories.map(category => category.toLowerCase()).includes(request.intent.slots.FoodCategory.value.toLowerCase());
+    },
+    handle(handlerInput) {
+      const { request } = handlerInput.requestEnvelope;
+      return API.searchRecipes({ cuisine: request.intent.slots.FoodCategory.value })
+        .then((apiResponse) => {
+          const recipesText = utils.oxfordComma(apiResponse.results.slice(0, 3).map(item => item.name));
+          return handlerInput.responseBuilder
+            .speak(`We have found ${apiResponse.totalResults} Results. Would you like the recipe for ${recipesText}`)
+            .reprompt()
+            .getResponse();
+        })
+        .catch(handlers.ErrorHandler.handle.bind(null, handlerInput));
+
+    }
+  },
   SessionEndedRequestHandler:{
     canHandle(handlerInput) {
-      console.log("SESSION END?", handlerInput.requestEnvelope.request);
       return handlerInput.requestEnvelope.request.type === 'SessionEndedRequest';
     },
     handle(handlerInput) {
@@ -83,7 +107,7 @@ const handlers = {
 
       const sessionAttributes = attributesManager.getSessionAttributes();
       if(sessionAttributes.state === states.init) {
-        return intents.initalYesIntent(handlerInput);
+        return intents.initialYesIntent(handlerInput);
       }
       return handlers.ErrorHandler.handle(handlerInput, new Error('Unhandled Yes'));
     },
@@ -98,7 +122,7 @@ const handlers = {
 
       const sessionAttributes = attributesManager.getSessionAttributes();
       if(sessionAttributes.state === states.init) {
-        return intents.initalNoIntent(handlerInput);
+        return intents.initialNoIntent(handlerInput);
       }
       return handlers.ErrorHandler.handle(handlerInput, new Error('Unhandled No'));
     },

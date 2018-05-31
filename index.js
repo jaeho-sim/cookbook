@@ -1,8 +1,7 @@
 'use strict';
 
-require('dotenv').config(process.env.NODE_ENV ? { path: `.env.${process.env.NODE_ENV}` } : {});
 const Alexa = require('ask-sdk');
-
+require('./src/env');
 const handlers = require('./src/handlers');
 const categories = require('./static-data/category.json').map(category => category.name.value);
 

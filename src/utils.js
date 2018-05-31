@@ -24,6 +24,14 @@ const exportObj = {
       output[index] = temp;
     }
     return output;
+  },
+  doUpdateWithApi: (nextSkillOffset, {getSession}) => {
+    const { apiCache } = getSession();
+    return apiCache.offset === null || (apiCache.records.length < nextSkillOffset && apiCache.maxRecordCount > nextSkillOffset);
+  },
+  updateApiCache: (skillOffset, {setSession, getSession}) => {
+
+    return true;
   }
 };
 

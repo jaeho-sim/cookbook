@@ -39,6 +39,49 @@ describe('Utils', () => {
     });
   });
 
+  describe('doUpdateWithApi', () => {
+    let setSession;
+    let getSession;
+    let fakeCache;
+    beforeEach(() => {
+      fakeCache = {
+        offset: null,
+        maxRecordCount: null,
+        records: [],
+        skillOffset: null,
+      };
+      setSession = sinon.expectation.create('setSession');
+      // setSession.withExactArgs();
+      getSession = sinon.expectation.create('getSession');
+      getSession.withExactArgs().returns({ apiCache: fakeCache });
+    });
+    describe('cache miss', () => {
+      it('no cache set (first run)', () => {
+        assert.strictEqual(utils.doUpdateWithApi(3, {getSession}), true);
+        // setSession.verify();
+        getSession.verify();
+      });
+      it('cache set but retrieval necessary', () => {
+        fakeCache.offset = 0;
+        fakeCache.maxRecordCount = 100;
+        fakeCache.records = [ 1, 2, 3, 4, 5, 6, 7, 8, 9 ];
+        assert.strictEqual(utils.doUpdateWithApi(12, {getSession}), true);
+        // setSession.verify();
+        getSession.verify();
+      });
+    });
+    describe('cache hit', () => {
+      it('potential offset is higher than records', () => {
+        fakeCache.offset = 0;
+        fakeCache.maxRecordCount = 6;
+        fakeCache.records = [ 1, 2, 3, 4, 5, 6 ];
+        assert.strictEqual(utils.doUpdateWithApi(9, {getSession}), false);
+        // setSession.verify();
+        getSession.verify();
+      });
+    });
+  });
+
   afterEach(() => {
     Object.keys(sinonMocks).forEach((key) => {
       sinonMocks[key].restore();
@@ -48,3 +91,17 @@ describe('Utils', () => {
     });
   });
 });
+
+
+// sinonMocks.fakeInputSetSessionAttributes = sinon.mock(fakeInput.attributesManager);
+// sinonMocks.fakeInputSetSessionAttributes.expects('setSessionAttributes').withExactArgs({
+//   queryApiAttributes: {
+//     query: {
+//       offset: 0,
+//       number: 10,
+//       records: 10,
+//       cuisine: fakeCuisineString
+//     },
+//     records: fakeApiResponse.records
+//   }
+// });

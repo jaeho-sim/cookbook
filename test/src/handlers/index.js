@@ -4,6 +4,8 @@ const handlers = require('../../../src/handlers/index');
 const { states } = require('../../../src/constants');
 const utils = require('../../../src/utils');
 const intents = require('../../../src/handlers/intents');
+const API = require('../../../src/foodapi');
+
 
 let sinonMocks = {};
 let sinonStubs = {};
@@ -98,12 +100,20 @@ describe('handlers', () => {
       it('Matched request type and intent name', () => {
         fakeInput.requestEnvelope.request.type = 'IntentRequest';
         fakeInput.requestEnvelope.request.intent = { name: 'MoreIntent' };
+        sinonMocks.fakeInputGetSessionAttributes = sinon.mock(fakeInput.attributesManager);
+        sinonMocks.fakeInputGetSessionAttributes.expects('getSessionAttributes').withArgs().returns({ state: states.category});
+
         assert.isTrue(handlers.CategoryIntentHandler.canHandle(fakeInput), 'Did not get the expected return');
+        sinonMocks.fakeInputGetSessionAttributes.verify();
       });
       it('Unmatched request', () => {
         fakeInput.requestEnvelope.request.type = '';
         fakeInput.requestEnvelope.request.intent = { name: '' };
+        sinonMocks.fakeInputGetSessionAttributes = sinon.mock(fakeInput.attributesManager);
+        sinonMocks.fakeInputGetSessionAttributes.expects('getSessionAttributes').withArgs().returns({ state: '' });
+
         assert.isFalse(handlers.CategoryIntentHandler.canHandle(fakeInput), 'Did not get the expected return');
+        // sinonMocks.fakeInputGetSessionAttributes.verify(); // && statements don't require this to be called
       });
     });
     describe('handle', () => {
@@ -122,6 +132,91 @@ describe('handlers', () => {
         assert.strictEqual(handlers.CategoryIntentHandler.handle(fakeInput), fakeGetResponseReturn, 'Did not get the expected return');
         sinonMocks.fakeInputSetSessionAttributes.verify();
         sinonMocks.fakeInputSpeak.verify();
+      });
+    });
+  });
+  describe('CategorySelectionIntentHandler', () => {
+    describe('canHandle', () => {
+      describe('Valid Response Pattern', () => {
+        beforeEach(() => {
+          fakeInput.requestEnvelope.request.type = 'IntentRequest';
+          fakeInput.requestEnvelope.request.intent = {
+            name: 'CategorySelectionIntent',
+            slots: {
+              FoodCategory: { value: "chinese" }
+            }
+          };
+
+        });
+        it('Slot food category is correct and is the category selection intent type', () => {
+          assert.isTrue(handlers.CategorySelectionIntentHandler.canHandle(fakeInput), 'Did not get the expected return');
+        });
+        it('Slot food category is correct and is the more intent type', () => {
+          fakeInput.requestEnvelope.request.intent.name = 'MoreIntent'
+          assert.isTrue(handlers.CategorySelectionIntentHandler.canHandle(fakeInput), 'Did not get the expected return');
+        });
+      });
+      it('Slot food category is incorrect and is not the expected intent type', () => {
+        fakeInput.requestEnvelope.request.type = 'foo';
+        fakeInput.requestEnvelope.request.intent = {
+          name: 'baz',
+          slots: {
+            FoodCategory: { name: "waldo" }
+          }
+        };
+
+        assert.isFalse(handlers.CategorySelectionIntentHandler.canHandle(fakeInput), 'Did not get the expected return');
+      });
+    });
+    describe('handle', () => {
+      let fakeCuisineString = '';
+      let fakeApiResponse = {};
+      describe('Valid API Calls', () => {
+        beforeEach(() => {
+          fakeCuisineString = 'chinese';
+          fakeApiResponse = {
+            results: [
+              { id: 1238, name: 'Waldo Soup' },
+              { id: 38, name: 'Baz al Foo' },
+              { id: 1122, name: 'Bar in a Blanket' },
+              { id: 2211, name: 'Two two one one' },
+              { id: 8899, name: 'Lipsum Yumsum' },
+              { id: 9977, name: 'Dimsum Yumsum' },
+              { id: 1177, name: 'Wrapper Donner' },
+              { id: 177, name: 'Shwarma warm ya' },
+              { id: 717, name: 'Chicken Balls' },
+              { id: 99, name: 'Wall Nuts' }
+            ],
+            totalResults: 10
+          };
+          fakeInput.requestEnvelope.request.intent = {
+            slots: {
+              FoodCategory: { value: 'chinese' }
+            }
+          };
+          sinonMocks.APISearch = sinon.mock(API);
+          sinonMocks.APISearch.expects('searchRecipes').withExactArgs({ cuisine: fakeCuisineString }).resolves(fakeApiResponse);
+
+          sinonMocks.fakeUtilsApiCaching = sinon.mock(utils);
+          sinonMocks.fakeUtilsApiCaching.expects('updateApiCache').withExactArgs(fakeApiResponse, fakeInput.attributesManager.setSessionAttributes).returns(true);
+
+
+          sinonMocks.fakeInputSpeak = sinon.mock(fakeInput.responseBuilder);
+          sinonMocks.fakeInputSpeak.expects('speak')
+            .withExactArgs(`We have found 10 Results. Would you like the recipe for ${fakeApiResponse.results[0].name}, ${fakeApiResponse.results[1].name} or ${fakeApiResponse.results[2].name}`)
+            .returns(fakeSpeakReturn);
+
+        });
+        it('Responds as expected when selecting the category for the first time', () => {
+          const promiseFinally = (result) => {
+            assert.strictEqual(result, fakeGetResponseReturn, 'Did not get the expected return');
+            sinonMocks.APISearch.verify();
+            sinonMocks.fakeInputSpeak.verify();
+          };
+          return handlers.CategorySelectionIntentHandler.handle(fakeInput)
+            .then(promiseFinally)
+            .catch(promiseFinally);
+        });
       });
     });
   });
@@ -175,7 +270,7 @@ describe('handlers', () => {
           fakeSessionAttributes.state = states.init;
 
           sinonMocks.intentsInitialYesIntent = sinon.mock(intents);
-          sinonMocks.intentsInitialYesIntent.expects('initalYesIntent').withExactArgs(fakeInput).returns(fakeGetResponseReturn);
+          sinonMocks.intentsInitialYesIntent.expects('initialYesIntent').withExactArgs(fakeInput).returns(fakeGetResponseReturn);
         });
         it('Handles correctly when the state is initial', () => {
           assert.strictEqual(handlers.YesIntent.handle(fakeInput), fakeGetResponseReturn, 'Did not get the expected return');
@@ -231,7 +326,7 @@ describe('handlers', () => {
           fakeSessionAttributes.state = states.init;
 
           sinonMocks.intentsInitialNoIntent = sinon.mock(intents);
-          sinonMocks.intentsInitialNoIntent.expects('initalNoIntent').withExactArgs(fakeInput).returns(fakeGetResponseReturn);
+          sinonMocks.intentsInitialNoIntent.expects('initialNoIntent').withExactArgs(fakeInput).returns(fakeGetResponseReturn);
         });
         it('Handles correctly when the state is initial', () => {
           assert.strictEqual(handlers.NoIntent.handle(fakeInput), fakeGetResponseReturn, 'Did not get the expected return');

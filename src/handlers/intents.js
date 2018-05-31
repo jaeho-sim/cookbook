@@ -1,5 +1,7 @@
+const { states } = require('../constants');
+
 const intents = {
-  initalYesIntent: (handlerInput) => {
+  initialYesIntent: (handlerInput) => {
     const { responseBuilder } = handlerInput;
     handlerInput.attributesManager.setSessionAttributes({ state: states.category })
     return responseBuilder
@@ -8,7 +10,7 @@ const intents = {
       .getResponse();
 
   },
-  initalNoIntent:({ responseBuilder }) => {
+  initialNoIntent:({ responseBuilder }) => {
     return responseBuilder
       .speak('What dish are you cooking right now?')
       .reprompt()
