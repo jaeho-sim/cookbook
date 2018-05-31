@@ -9,7 +9,7 @@ resources:
     type: git
     source:
       uri: git@github.com:simjh0919/cookbook
-      branch: chore/setup-concourse-ci/#158000656
+      branch: master
       private_key: ((github-private-key))
   - name: pr-cookbook
     type: pull-request
