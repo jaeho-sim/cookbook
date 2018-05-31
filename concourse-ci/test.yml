@@ -24,4 +24,3 @@ run:
     npm install
     npm run test
     cp -r . ../built-resource
-    ls -la ../built-resource
