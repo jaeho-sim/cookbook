@@ -1,0 +1,26 @@
+---
+platform: linux
+
+image_resource:
+  type: docker-image
+  source:
+    repository: tribalscaledocker/alpine-python-node
+    tag: 8.11.2
+
+inputs:
+  - name: project-repo
+outputs:
+  - name: built-resource
+caches:
+  - path: project-repo/node_modules
+  - path: built-resource/node_modules
+
+run:
+  path: sh
+  args:
+  - -exc
+  - |
+    cd project-repo
+    npm install
+    npm run test
+    cp -r . ../built-resource
