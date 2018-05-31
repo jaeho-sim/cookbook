@@ -11,9 +11,10 @@ inputs:
   - name: project-repo
 outputs:
   - name: built-resource
+  - path: built-resource
 caches:
   - path: project-repo/node_modules
-  - path: built-resource
+  - path: built-resource/node_modules
 
 run:
   path: sh
@@ -25,3 +26,4 @@ run:
     npm run test
     cd ../
     cp -r . ../built-resource
+    ls -la
