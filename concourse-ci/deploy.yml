@@ -9,13 +9,8 @@ image_resource:
 
 inputs:
   - name: project-repo
-outputs:
-  - name: built-resource
 caches:
-  - path: project-repo/node_modules
   - path: project-repo
-  - path: built-resource/node_modules
-  - path: built-resource/src/node_modules
 
 run:
   path: sh
