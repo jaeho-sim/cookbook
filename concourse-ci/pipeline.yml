@@ -35,7 +35,7 @@ jobs:
       - task: deploy
         input_mapping:
           project-repo: built-demo-cookbook
-        file: built-demo-cookbook/concourse-ci/deploy.yml
+        file: git-master-repo/concourse-ci/deploy.yml
         params:
           NODE_ENV: test
           AWS_SDK_KEY: ((aws-id))

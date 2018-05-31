@@ -33,4 +33,5 @@ run:
     echo "[default]" >> ~/.aws/credentials
     echo "aws_access_key_id = $AWS_SDK_KEY" >> ~/.aws/credentials
     echo "aws_secret_access_key = $AWS_SDK_SECRET" >> ~/.aws/credentials
+    ls -la
     aws lambda update-function-code --function-name demo-cookbook-2018-05 --zip-file fileb://lambda_upload.zip
