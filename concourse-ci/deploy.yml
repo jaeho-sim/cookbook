@@ -13,6 +13,7 @@ outputs:
   - name: built-resource
 caches:
   - path: project-repo/node_modules
+  - path: project-repo
   - path: built-resource/node_modules
   - path: built-resource/src/node_modules
 
@@ -24,6 +25,7 @@ run:
     cd project-repo
     rm -rf test
     npm prune --production
+    ls -la
     zip -r lambda_upload.zip index.js node_modules src
     mkdir ~/.aws
     touch ~/.aws/config
