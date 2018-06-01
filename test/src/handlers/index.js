@@ -146,6 +146,8 @@ describe('handlers', () => {
               FoodCategory: { value: "chinese" }
             }
           };
+          sinonStubs.untilsCatValidIntentAndSlots = sinon.stub(utils, 'categorySelectionIntentValidIntentAndSlots').returns(true);
+          sinonStubs.untilsCatValidMoreIntent = sinon.stub(utils, 'categorySelectionIntentValidMoreIntent').returns(false);
 
         });
         it('Slot food category is correct and is the category selection intent type', () => {
@@ -169,50 +171,113 @@ describe('handlers', () => {
       });
     });
     describe('handle', () => {
+      let fakeSessionAttributes = {};
       let fakeCuisineString = '';
       let fakeApiResponse = {};
-      describe('Valid API Calls', () => {
+      let fakeUtilsCache = {};
+      describe('Valid Retrieve from cache', () => {
         beforeEach(() => {
           fakeCuisineString = 'chinese';
+          fakeSessionAttributes = {
+            apiCache: {
+              offset: null,
+              maxRecordCount: null,
+              records: [],
+              skillOffset: null,
+              query: { cuisine: fakeCuisineString }
+            }
+          };
           fakeApiResponse = {
             results: [
-              { id: 1238, name: 'Waldo Soup' },
-              { id: 38, name: 'Baz al Foo' },
-              { id: 1122, name: 'Bar in a Blanket' },
-              { id: 2211, name: 'Two two one one' },
-              { id: 8899, name: 'Lipsum Yumsum' },
-              { id: 9977, name: 'Dimsum Yumsum' },
-              { id: 1177, name: 'Wrapper Donner' },
-              { id: 177, name: 'Shwarma warm ya' },
-              { id: 717, name: 'Chicken Balls' },
-              { id: 99, name: 'Wall Nuts' }
+              { id: 1238, title: 'Waldo Soup' },
+              { id: 38, title: 'Baz al Foo' },
+              { id: 1122, title: 'Bar in a Blanket' },
+              { id: 2211, title: 'Two two one one' },
+              { id: 8899, title: 'Lipsum Yumsum' },
+              { id: 9977, title: 'Dimsum Yumsum' },
+              { id: 1177, title: 'Wrapper Donner' },
+              { id: 177, title: 'Shwarma warm ya' },
+              { id: 717, title: 'Chicken Balls' }
             ],
-            totalResults: 10
+            offset: 0,
+            totalResults: 9
           };
+          fakeApiResponse.records = fakeApiResponse.results;
+          fakeApiResponse.maxRecordCount = fakeApiResponse.totalResults;
+
           fakeInput.requestEnvelope.request.intent = {
             slots: {
               FoodCategory: { value: 'chinese' }
             }
           };
-          sinonMocks.APISearch = sinon.mock(API);
-          sinonMocks.APISearch.expects('searchRecipes').withExactArgs({ cuisine: fakeCuisineString }).resolves(fakeApiResponse);
+          fakeUtilsCache = Object.assign({} , fakeSessionAttributes.apiCache, {
+            offset: null,
+            maxRecordCount: null,
+            records: [],
+            skillOffset: 3,
+            query: { cuisine: fakeCuisineString }
+          });
 
-          sinonMocks.fakeUtilsApiCaching = sinon.mock(utils);
-          sinonMocks.fakeUtilsApiCaching.expects('updateApiCache').withExactArgs(fakeApiResponse, fakeInput.attributesManager.setSessionAttributes).returns(true);
-
+          sinonMocks.attributesManagerGetSession = sinon.mock(fakeInput.attributesManager);
+          sinonMocks.utilsUpdateApiCache = sinon.mock(utils);
+          sinonMocks.utilsUpdateApiCache.expects('updateApiCache')
+            .withExactArgs(fakeUtilsCache, fakeInput.attributesManager)
+            .resolves(fakeApiResponse);
 
           sinonMocks.fakeInputSpeak = sinon.mock(fakeInput.responseBuilder);
           sinonMocks.fakeInputSpeak.expects('speak')
-            .withExactArgs(`We have found 10 Results. Would you like the recipe for ${fakeApiResponse.results[0].name}, ${fakeApiResponse.results[1].name} or ${fakeApiResponse.results[2].name}`)
+            .withExactArgs(`We have found ${fakeApiResponse.totalResults} Results. Would you like the recipe for ${fakeApiResponse.results[0].title}, ${fakeApiResponse.results[1].title} or ${fakeApiResponse.results[2].title}`)
             .returns(fakeSpeakReturn);
 
         });
         it('Responds as expected when selecting the category for the first time', () => {
           const promiseFinally = (result) => {
             assert.strictEqual(result, fakeGetResponseReturn, 'Did not get the expected return');
-            sinonMocks.APISearch.verify();
+            sinonMocks.utilsUpdateApiCache.verify();
+            sinonMocks.attributesManagerGetSession.verify();
             sinonMocks.fakeInputSpeak.verify();
           };
+          sinonMocks.attributesManagerGetSession.expects('getSessionAttributes').withExactArgs().returns(null);
+          return handlers.CategorySelectionIntentHandler.handle(fakeInput)
+            .then(promiseFinally)
+            .catch(promiseFinally);
+        });
+        it('Responds as expected when loading from the cache', () => {
+          const promiseFinally = (result) => {
+            assert.strictEqual(result, fakeGetResponseReturn, 'Did not get the expected return');
+            sinonMocks.utilsUpdateApiCache.verify();
+            sinonMocks.attributesManagerGetSession.verify();
+            sinonMocks.fakeInputSpeak.verify();
+          };
+
+          sinonMocks.fakeInputSpeak.restore();
+          sinonMocks.fakeInputSpeak = sinon.mock(fakeInput.responseBuilder);
+          sinonMocks.fakeInputSpeak.expects('speak')
+            .withExactArgs(`There are 6 more recipes to choose from. Would you like the recipe for ${fakeApiResponse.results[3].title}, ${fakeApiResponse.results[4].title} or ${fakeApiResponse.results[5].title}`)
+            .returns(fakeSpeakReturn);
+
+          //minor change to our assertion
+          fakeSessionAttributes.apiCache.skillOffset = 3;
+          fakeUtilsCache.skillOffset = 6;
+
+          sinonMocks.attributesManagerGetSession.expects('getSessionAttributes').withExactArgs().returns(fakeSessionAttributes);
+          return handlers.CategorySelectionIntentHandler.handle(fakeInput)
+            .then(promiseFinally)
+            .catch(promiseFinally);
+        });
+        it('Responds as expected when changing the query', () => {
+          const promiseFinally = (result) => {
+            assert.strictEqual(result, fakeGetResponseReturn, 'Did not get the expected return');
+            sinonMocks.utilsUpdateApiCache.verify();
+            sinonMocks.attributesManagerGetSession.verify();
+            sinonMocks.fakeInputSpeak.verify();
+          };
+
+          //minor change to our assertion
+          fakeSessionAttributes.apiCache.skillOffset = 9;
+          fakeSessionAttributes.apiCache.query = { cuisine: 'waldo' };
+
+          sinonMocks.attributesManagerGetSession.expects('getSessionAttributes').withExactArgs().returns(fakeSessionAttributes);
           return handlers.CategorySelectionIntentHandler.handle(fakeInput)
             .then(promiseFinally)
             .catch(promiseFinally);

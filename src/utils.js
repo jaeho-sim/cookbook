@@ -1,6 +1,6 @@
 'use strict';
 
-
+const API = require('./foodapi');
 const exportObj = {
   oxfordComma: (strArray, adjoinment = 'or') => {
     if(!strArray.length) {
@@ -25,13 +25,49 @@ const exportObj = {
     }
     return output;
   },
-  doUpdateWithApi: (nextSkillOffset, {getSession}) => {
-    const { apiCache } = getSession();
-    return apiCache.offset === null || (apiCache.records.length < nextSkillOffset && apiCache.maxRecordCount > nextSkillOffset);
+  categorySelectionIntentValidMoreIntent: (handlerInput, cleanCategories) => {
+    const { attributesManager } = handlerInput;
+    const { request } = handlerInput.requestEnvelope;
+    const intentName = request.intent.name;
+    const { apiCache } = attributesManager.getSessionAttributes();
+    if (!apiCache || !apiCache.query || !apiCache.query.cuisine) {
+      return false;
+    }
+    return intentName === 'MoreIntent' && cleanCategories.includes(apiCache.query.cuisine.toLowerCase());
   },
-  updateApiCache: (skillOffset, {setSession, getSession}) => {
-
-    return true;
+  categorySelectionIntentValidIntentAndSlots: (handlerInput, cleanCategories) => {
+    const { attributesManager } = handlerInput;
+    const { request } = handlerInput.requestEnvelope;
+    const intentName = request.intent.name;
+    if (!request.intent.slots || !request.intent.slots.FoodCategory) {
+      return false;
+    }
+    return intentName === 'CategorySelectionIntent' && cleanCategories.includes(request.intent.slots.FoodCategory.value.toLowerCase());
+  },
+  doUpdateWithApi: (apiCache) => {
+    return apiCache.offset === null || (apiCache.records.length < apiCache.skillOffset && apiCache.maxRecordCount > apiCache.skillOffset);
+  },
+  updateApiCache: (apiCache, {setSessionAttributes}) => {
+    if (!exportObj.doUpdateWithApi(apiCache)) {
+      setSessionAttributes({ apiCache });
+      return Promise.resolve(apiCache);
+    }
+    return API.searchRecipes(apiCache.query)
+      .then((apiResults) => {
+        const newCache = {
+          skillOffset: apiCache.skillOffset,
+          offset: apiResults.offset,
+          query: apiCache.query,
+          maxRecordCount: apiResults.totalResults,
+          records: apiCache.records.concat(apiResults.results.map(({id, title}) => ({id, title}) ))
+        };
+        setSessionAttributes({
+          apiCache: newCache
+        });
+        apiResults.records = newCache.records;
+        apiResults.maxRecordCount = newCache.maxRecordCount;
+        return apiResults;
+      });
   }
 };
 

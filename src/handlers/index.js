@@ -1,5 +1,6 @@
 'use strict';
 
+const _ = require('lodash');
 const utils = require('../utils');
 const { states } = require('../constants');
 const categories = require('../../static-data/category.json').map(category => category.name.value);
@@ -66,19 +67,41 @@ const handlers = {
   },
   CategorySelectionIntentHandler:{
     canHandle(handlerInput) {
+      const { attributesManager } = handlerInput;
       const { request } = handlerInput.requestEnvelope;
-      console.log('CategorySelectionIntentHandler request: ', request);
+      const intentName = request.intent.name;
+      const cleanCategories = categories.map(category => category.toLowerCase());
+
       return request.type === 'IntentRequest' &&
-        ['CategorySelectionIntent','MoreIntent'].includes(request.intent.name) &&
-        categories.map(category => category.toLowerCase()).includes(request.intent.slots.FoodCategory.value.toLowerCase());
+        ['CategorySelectionIntent','MoreIntent'].includes(intentName) &&
+        (
+          utils.categorySelectionIntentValidMoreIntent(handlerInput, cleanCategories) ||
+          utils.categorySelectionIntentValidIntentAndSlots(handlerInput, cleanCategories)
+        );
     },
     handle(handlerInput) {
       const { request } = handlerInput.requestEnvelope;
-      return API.searchRecipes({ cuisine: request.intent.slots.FoodCategory.value })
+      const { attributesManager, responseBuilder } = handlerInput;
+      let sessionAttributes = attributesManager.getSessionAttributes();
+      if (!(sessionAttributes && sessionAttributes.apiCache) || (request.intent.slots && request.intent.slots.FoodCategory && !_.isEqual(sessionAttributes.apiCache.query, { cuisine: request.intent.slots.FoodCategory.value }))) {
+        // setup the apiCache schema
+        sessionAttributes = sessionAttributes || {};
+        sessionAttributes.apiCache = {
+          offset: null,
+          maxRecordCount: null,
+          records: [],
+          skillOffset: 0,
+          query: { cuisine: request.intent.slots.FoodCategory.value }
+        }
+      }
+      sessionAttributes.apiCache.skillOffset = sessionAttributes.apiCache.skillOffset ? parseInt(sessionAttributes.apiCache.skillOffset) : 0;
+      sessionAttributes.apiCache.skillOffset += 3;
+      return utils.updateApiCache(sessionAttributes.apiCache, attributesManager)
         .then((apiResponse) => {
-          const recipesText = utils.oxfordComma(apiResponse.results.slice(0, 3).map(item => item.name));
+          const speakPrefix = sessionAttributes.apiCache.skillOffset === 3 ? `We have found ${apiResponse.maxRecordCount} Results. `: `There are ${apiResponse.maxRecordCount - sessionAttributes.apiCache.skillOffset + 3} more recipes to choose from. `;
+          const recipesText = utils.oxfordComma(apiResponse.records.slice(sessionAttributes.apiCache.skillOffset - 3, sessionAttributes.apiCache.skillOffset).map(item => item.title));
           return handlerInput.responseBuilder
-            .speak(`We have found ${apiResponse.totalResults} Results. Would you like the recipe for ${recipesText}`)
+            .speak(`${speakPrefix}Would you like the recipe for ${recipesText}`)
             .reprompt()
             .getResponse();
         })

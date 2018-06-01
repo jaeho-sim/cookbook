@@ -16,7 +16,7 @@ if(!process.env.X_MASHAPE_KEY || !process.env.X_MASHAPE_HOST) {
 }
 
 const searchRecipes = function (query) {
-  const cleanQuery = Object.assign({}, { offset: 0 }, query);
+  const cleanQuery = Object.assign({}, { offset: 0, number: 9 }, query);
   return axios.get(`${BASE_URL}search?${querystring.stringify(query)}&instructionsRequired=false&type=main+course`, config)
     .then((response) => {
       return response.data;

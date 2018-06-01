@@ -1,6 +1,7 @@
 const sinon = require('sinon');
 const assert = require('chai').assert;
 const utils = require('../../src/utils');
+const API = require('../../src/foodapi');
 
 let sinonMocks = {};
 let sinonStubs = {};
@@ -39,45 +40,101 @@ describe('Utils', () => {
     });
   });
 
-  describe('doUpdateWithApi', () => {
+  describe('Caching System', () => {
     let setSession;
-    let getSession;
+    // let getSession;
+    let fakeQuery;
     let fakeCache;
+    let fakeApiResponse;
+    let fakeCuisineString;
     beforeEach(() => {
+      fakeCuisineString = 'chinese';
+      fakeQuery = { cuisine: fakeCuisineString };
       fakeCache = {
         offset: null,
         maxRecordCount: null,
         records: [],
         skillOffset: null,
+        query: fakeQuery
       };
       setSession = sinon.expectation.create('setSession');
-      // setSession.withExactArgs();
-      getSession = sinon.expectation.create('getSession');
-      getSession.withExactArgs().returns({ apiCache: fakeCache });
     });
-    describe('cache miss', () => {
-      it('no cache set (first run)', () => {
-        assert.strictEqual(utils.doUpdateWithApi(3, {getSession}), true);
-        // setSession.verify();
-        getSession.verify();
+
+    describe('doUpdateWithApi', () => {
+      describe('cache miss', () => {
+        it('no cache set (first run)', () => {
+          fakeCache.skillOffset = 3;
+          assert.isTrue(utils.doUpdateWithApi(fakeCache), 'Cache did not miss due to inital');
+        });
+        it('cache set but retrieval necessary', () => {
+          fakeCache.offset = 0;
+          fakeCache.maxRecordCount = 100;
+          fakeCache.records = [ 1, 2, 3, 4, 5, 6, 7, 8, 9 ];
+          fakeCache.skillOffset = 12;
+          assert.isTrue(utils.doUpdateWithApi(fakeCache), 'Cache did not miss due to unloaded content');
+        });
       });
-      it('cache set but retrieval necessary', () => {
-        fakeCache.offset = 0;
-        fakeCache.maxRecordCount = 100;
-        fakeCache.records = [ 1, 2, 3, 4, 5, 6, 7, 8, 9 ];
-        assert.strictEqual(utils.doUpdateWithApi(12, {getSession}), true);
-        // setSession.verify();
-        getSession.verify();
+      describe('cache hit', () => {
+        it('potential offset is higher than records', () => {
+          fakeCache.offset = 0;
+          fakeCache.maxRecordCount = 6;
+          fakeCache.records = [ 1, 2, 3, 4, 5, 6 ];
+          fakeCache.skillOffset = 9;
+          assert.isFalse(utils.doUpdateWithApi(fakeCache), 'Cache did not hit due to end of records');
+        });
       });
     });
-    describe('cache hit', () => {
-      it('potential offset is higher than records', () => {
-        fakeCache.offset = 0;
-        fakeCache.maxRecordCount = 6;
-        fakeCache.records = [ 1, 2, 3, 4, 5, 6 ];
-        assert.strictEqual(utils.doUpdateWithApi(9, {getSession}), false);
-        // setSession.verify();
-        getSession.verify();
+    describe('updateApiCache', () => {
+      beforeEach(() => {
+        fakeApiResponse = {
+          results: [
+            { id: 1238, title: 'Waldo Soup' },
+            { id: 38, title: 'Baz al Foo' },
+            { id: 1122, title: 'Bar in a Blanket' },
+            { id: 2211, title: 'Two two one one' },
+            { id: 8899, title: 'Lipsum Yumsum' },
+            { id: 9977, title: 'Dimsum Yumsum' },
+            { id: 1177, title: 'Wrapper Donner' },
+            { id: 177, title: 'Shwarma warm ya' },
+            { id: 717, title: 'Chicken Balls' }
+          ],
+          offset: 0,
+          totalResults: 9
+        };
+
+        sinonMocks.APISearch = sinon.mock(API);
+        sinonMocks.APISearch.expects('searchRecipes').withExactArgs({ cuisine: fakeCuisineString }).resolves(fakeApiResponse);
+      });
+
+      it('Updates the session after Cache miss & API Call', () => {
+        const promiseFinally = (result) => {
+          assert.deepEqual(result, fakeApiResponse, 'Did not resolve the expected from the API');
+          setSession.verify();
+          sinonMocks.APISearch.verify();
+        };
+
+        sinonMocks.utilsDoUpdateWithApi = sinon.mock(utils);
+        sinonMocks.utilsDoUpdateWithApi.expects('doUpdateWithApi').withExactArgs(fakeCache).returns(true);
+        setSession.withExactArgs({ apiCache: Object.assign({}, fakeCache, { offset: 0, maxRecordCount: fakeApiResponse.totalResults, records: fakeApiResponse.results }) });
+
+        return utils.updateApiCache(fakeCache, {setSessionAttributes: setSession})
+          .then(promiseFinally)
+          .catch(promiseFinally);
+      });
+
+      it('Updates the session after Cache miss', () => {
+        const promiseFinally = (result) => {
+          assert.deepEqual(result, fakeCache, 'Did not resolve the expected from the Cache');
+          setSession.verify();
+        };
+
+        sinonMocks.utilsDoUpdateWithApi = sinon.mock(utils);
+        sinonMocks.utilsDoUpdateWithApi.expects('doUpdateWithApi').withExactArgs(fakeCache).returns(false);
+        setSession.withExactArgs({ apiCache: fakeCache });
+
+        return utils.updateApiCache(fakeCache, {setSessionAttributes: setSession})
+          .then(promiseFinally)
+          .catch(promiseFinally);
       });
     });
   });
@@ -91,17 +148,3 @@ describe('Utils', () => {
     });
   });
 });
-
-
-// sinonMocks.fakeInputSetSessionAttributes = sinon.mock(fakeInput.attributesManager);
-// sinonMocks.fakeInputSetSessionAttributes.expects('setSessionAttributes').withExactArgs({
-//   queryApiAttributes: {
-//     query: {
-//       offset: 0,
-//       number: 10,
-//       records: 10,
-//       cuisine: fakeCuisineString
-//     },
-//     records: fakeApiResponse.records
-//   }
-// });
